@@ -1,5 +1,6 @@
 {
   "enabledPlugins": {
-    "engineering-skills@claude-code-skills": true
+    "engineering-skills@claude-code-skills": true,
+    "marketing-skills@claude-code-skills": true
   }
 }
