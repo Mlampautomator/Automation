@@ -63,9 +63,13 @@ class ProductImageScraper:
         self.download_dir = download_dir
 
     def extract_product_id(self, url: str) -> str:
+        """
+        Wyodrebnia symbol produktu z URL-a mlamp.pl — pierwsza 5-6 cyfrowa
+        liczba w slug-u. Przyklad: ...palin-pir-75442-czujnik-...-106665 -> 75442
+        """
         match = re.search(r'-(\d{5,6})(?:-|$)', url)
         return match.group(1) if match else None
- 
+
     def _fetch_soup(self, url: str):
         """Pobiera stronę i zwraca BeautifulSoup. Rzuca wyjątek przy błędzie."""
         response = SESSION.get(url, timeout=20)
@@ -169,29 +173,29 @@ class ProductImageScraper:
             logger.info(f"📍 {url}")
             product_id = self.extract_product_id(url)
             if not product_id:
-                logger.warning("  ⚠️  Brak ID produktu w URL")
+                logger.warning("  ⚠️  Brak symbolu produktu w URL")
                 return None
- 
-            soup = self._fetch_soup(url)
+
+            soup         = self._fetch_soup(url)
             product_name = self.get_product_name(soup)
-            image_urls = self.get_product_images(soup, url)
- 
+            image_urls   = self.get_product_images(soup, url)
+
             downloaded_files = []
             if image_urls:
                 downloaded_files = self.download_images(image_urls, product_id)
                 logger.info(f"  ✓ Pobrano {len(downloaded_files)}/{len(image_urls)} obrazów")
             else:
                 logger.warning(f"  ⚠️  Brak obrazów dla {product_id}")
- 
+
             image_names = [Path(f).stem for f in downloaded_files]
             return {
-                'product_name': product_name,
-                'product_id': product_id,
-                'product_url': url,
-                'image_urls': image_urls,
+                'product_name':     product_name,
+                'product_id':       product_id,
+                'product_url':      url,
+                'image_urls':       image_urls,
                 'downloaded_files': downloaded_files,
-                'image_names': image_names,
-                'image_count': len(downloaded_files),
+                'image_names':      image_names,
+                'image_count':      len(downloaded_files),
             }
         except Exception as e:
             logger.error(f"  ❌ Błąd: {e}")
@@ -200,10 +204,7 @@ class ProductImageScraper:
  
 def read_urls_from_excel(filepath: str) -> list:
     """
-    Czyta URL-e z pliku linków mlamp.pl.
-    Obsługuje dwa formaty:
-      - Nowy (linki_mlamp_*.xlsx): kolumna D (index 3) = URL mlamp.pl
-      - Stary (urls.xlsx itp.):    kolumna A (index 0) = URL
+    Czyta URL-e produktow mlamp.pl z kolumny A pliku Linki-do-produktow-MLAMP.xlsx.
     """
     try:
         workbook = load_workbook(filepath, read_only=True, data_only=True)
@@ -212,17 +213,10 @@ def read_urls_from_excel(filepath: str) -> list:
         for row in worksheet.iter_rows(values_only=True):
             if not row:
                 continue
-            # Nowy format: kolumna D (index 3) zawiera URL mlamp.pl
-            if len(row) >= 4:
-                cell = row[3]
-                if cell and isinstance(cell, str) and cell.strip().startswith('https://mlamp.pl'):
-                    urls.append(cell.strip())
-                    continue
-            # Fallback: kolumna A
             cell = row[0]
             if cell and isinstance(cell, str) and cell.strip().startswith('http'):
                 urls.append(cell.strip())
-        logger.info(f"✓ Wczytano {len(urls)} URL-i")
+        logger.info(f"✓ Wczytano {len(urls)} URL-i z kolumny A")
         return urls
     except FileNotFoundError:
         logger.error(f"❌ Plik nie znaleziony: {filepath}")
@@ -239,13 +233,13 @@ def save_results_to_excel(results: list, output_filepath: str):
         worksheet = workbook.active
         worksheet.title = "Produkty i Obrazy"
  
-        headers = ["Nazwa produktu", "ID produktu", "Liczba obrazów",
+        headers = ["Nazwa produktu", "Symbol produktu", "Liczba obrazów",
                    "Nazwy obrazów", "Link do produktu", "Linki do obrazów"]
         for col, h in enumerate(headers, 1):
             cell = worksheet.cell(row=1, column=col, value=h)
             cell.font = Font(bold=True, color="FFFFFF")
             cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
- 
+
         for idx, result in enumerate(results, 2):
             if result:
                 worksheet.cell(row=idx, column=1, value=result['product_name'])
@@ -254,8 +248,8 @@ def save_results_to_excel(results: list, output_filepath: str):
                 worksheet.cell(row=idx, column=4, value=', '.join(result['image_names']) or 'Brak')
                 worksheet.cell(row=idx, column=5, value=result['product_url'])
                 worksheet.cell(row=idx, column=6, value='\n'.join(result['image_urls']) or 'Brak')
- 
-        for col, width in zip('ABCDEF', [40, 15, 15, 30, 50, 50]):
+
+        for col, width in zip('ABCDEF', [40, 16, 13, 30, 50, 50]):
             worksheet.column_dimensions[col].width = width
  
         workbook.save(output_filepath)
@@ -363,8 +357,9 @@ def main():
     logger.info("GOTOWE!")
  
     try:
-        subprocess.Popen(['cmd', '/c', f'start "" "{output_file}"'])
-    except Exception:
+        os.startfile(str(output_file))
+    except Exception as e:
+        logger.info(f"Nie udalo sie otworzyc: {e}")
         logger.info(f"Plik: {output_file}")
  
  
