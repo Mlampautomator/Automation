@@ -228,11 +228,11 @@ def read_urls_from_excel(filepath: str) -> list:
  
 def save_results_to_excel(results: list, output_filepath: str):
     try:
-        from openpyxl.styles import Font, PatternFill
+        from openpyxl.styles import Font, PatternFill, Alignment
         workbook = Workbook()
         worksheet = workbook.active
         worksheet.title = "Produkty i Obrazy"
- 
+
         headers = ["Nazwa produktu", "Symbol produktu", "Liczba obrazów",
                    "Nazwy obrazów", "Link do produktu", "Linki do obrazów"]
         for col, h in enumerate(headers, 1):
@@ -240,18 +240,21 @@ def save_results_to_excel(results: list, output_filepath: str):
             cell.font = Font(bold=True, color="FFFFFF")
             cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
 
+        wrap = Alignment(wrap_text=True, vertical="top")
         for idx, result in enumerate(results, 2):
             if result:
-                worksheet.cell(row=idx, column=1, value=result['product_name'])
+                worksheet.cell(row=idx, column=1, value=result['product_name']).alignment = wrap
                 worksheet.cell(row=idx, column=2, value=result['product_id'])
                 worksheet.cell(row=idx, column=3, value=result['image_count'])
-                worksheet.cell(row=idx, column=4, value=', '.join(result['image_names']) or 'Brak')
-                worksheet.cell(row=idx, column=5, value=result['product_url'])
-                worksheet.cell(row=idx, column=6, value='\n'.join(result['image_urls']) or 'Brak')
+                worksheet.cell(row=idx, column=4,
+                               value='\n'.join(result['image_names']) or 'Brak').alignment = wrap
+                worksheet.cell(row=idx, column=5, value=result['product_url']).alignment = wrap
+                worksheet.cell(row=idx, column=6,
+                               value='\n'.join(result['image_urls']) or 'Brak').alignment = wrap
 
-        for col, width in zip('ABCDEF', [40, 16, 13, 30, 50, 50]):
+        for col, width in zip('ABCDEF', [45, 16, 13, 22, 60, 80]):
             worksheet.column_dimensions[col].width = width
- 
+
         workbook.save(output_filepath)
         logger.info(f"✓ Wyniki zapisane do: {output_filepath}")
     except Exception as e:
